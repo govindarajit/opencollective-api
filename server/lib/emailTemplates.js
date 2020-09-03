@@ -113,6 +113,7 @@ export const templateNames = [
   'hostplan.renewal.thankyou',
   'hostplan.first.subscription.confirmation',
   'hostplan.upgrade.subscription.confirmation',
+  'admin.request.removal',
 ];
 
 const templatesPath = `${__dirname}/../../templates`;
