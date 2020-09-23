@@ -570,12 +570,7 @@ async function payExpenseWithTransferwise(host, payoutMethod, expense, fees, rem
   return transactions;
 }
 
-/**
- * Pay an expense based on the payout method defined in the Expense object
- * @PRE: fees { id, paymentProcessorFeeInCollectiveCurrency, hostFeeInCollectiveCurrency, platformFeeInCollectiveCurrency }
- * Note: some payout methods like PayPal will automatically define `paymentProcessorFeeInCollectiveCurrency`
- */
-export async function payExpense(req, args) {
+const doPayExpense = async (req, args) => {
   const { remoteUser } = req;
   const expenseId = args.id;
   const fees = omit(args, ['id', 'forceManual']);
@@ -740,6 +735,34 @@ export async function payExpense(req, args) {
   }
 
   return markExpenseAsPaid(expense, remoteUser);
+};
+
+/**
+ * Pay an expense based on the payout method defined in the Expense object
+ * @PRE: fees { id, paymentProcessorFeeInCollectiveCurrency, hostFeeInCollectiveCurrency, platformFeeInCollectiveCurrency }
+ * Note: some payout methods like PayPal will automatically define `paymentProcessorFeeInCollectiveCurrency`
+ */
+export async function payExpense(req, args) {
+  // Lock expense
+  await sequelize.transaction(async sqlTransaction => {
+    const expense = await models.Expense.findByPk(args.id, null, { lock: true, transaction: sqlTransaction });
+
+    // TODO handle missing expense
+
+    if (expense?.data.isLocked) {
+      throw new Error('This expense is already been processed, please try again later');
+    } else {
+      return expense.update({ data: { ...expense.data, isLocked: true } });
+    }
+  });
+
+  try {
+    return doPayExpense(req, args);
+  } finally {
+    // Unlock expense
+    const expense = await models.Expense.findByPk(args.id, null);
+    await expense.update({ data: { ...expense.data, isLocked: false } });
+  }
 }
 
 export async function markExpenseAsUnpaid(req, ExpenseId, processorFeeRefunded) {
