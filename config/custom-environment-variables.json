@@ -165,5 +165,8 @@
   "dbEncryption": {
     "secretKey": "DB_ENCRYPTION_SECRET_KEY",
     "cipher": "DB_ENCRYPTION_CIPHER"
+  },
+  "akismet": {
+    "key": "AKISMET_KEY"
   }
 }
