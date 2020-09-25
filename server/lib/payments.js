@@ -249,8 +249,8 @@ export const sendEmailNotifications = (order, transaction) => {
   debug('sendEmailNotifications');
   // for gift cards and manual payment methods
   if (!transaction) {
-    sendOrderProcessingEmail(order);
-    sendManualPendingOrderEmail(order);
+    sendOrderProcessingEmail(order); // This is the one for the Contributor
+    sendManualPendingOrderEmail(order); // This is the one for the Host Admins
   } else {
     order.transaction = transaction;
     sendOrderConfirmedEmail(order); // async
@@ -477,20 +477,20 @@ export const sendOrderProcessingEmail = async order => {
 
 const sendManualPendingOrderEmail = async order => {
   const { collective, fromCollective } = order;
-  const user = order.createdByUser;
   const host = await collective.getHostCollective();
+
   const data = {
     order: order.info,
-    user: user.info,
     collective: collective.info,
     host: host.info,
     fromCollective: fromCollective.activity,
     pendingOrderLink: `${config.host.website}/${collective.slug}/orders/${order.id}`,
   };
 
-  return emailLib.send('order.new.pendingFinancialContribution', user.email, data, {
-    from: `${collective.name} <no-reply@${collective.slug}.opencollective.com>`,
-  });
+  const adminUsers = await host.getAdminUsers();
+  for (const adminUser of adminUsers) {
+    await emailLib.send('order.new.pendingFinancialContribution', adminUser.email, data);
+  }
 };
 
 export const sendReminderPendingOrderEmail = async order => {
